@@ -1,11 +1,14 @@
 #!/usr/bin/python3
 
 # TODO Add function to create a default config.ini if the file is missing
+# NOTE: Removing config.ini from repo temporarily
 
 import paho.mqtt.client as mqtt
 import time
 import logging as log
 import configparser
+from io import StringIO
+import numpy as np
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -13,28 +16,27 @@ config.read('config.ini')
 log.basicConfig(filename=config['DEFAULT']['LOG_FILE'], level=log.DEBUG, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %H:%M:%S')
 
 def on_message(mqttc, obj, msg):
-    localtime = time.localtime(time.time())
-    # print(localtime) # Uncomment to see the structure of localtime
+    FormattedPayload = str(msg.payload, 'utf-8')
 
-    date_string = str(localtime.tm_mon) + "/" + str(localtime.tm_mday) + "/" + str(localtime.tm_year)
-    time_string = str(localtime.tm_hour) + ":" + str(localtime.tm_min) + ":" + str(localtime.tm_sec)
+    if "TEMP=" in FormattedPayload:
+        rawMsg = StringIO(FormattedPayload)
+        tmpMsg = np.genfromtxt(rawMsg, dtype=[('EventDate', 'S10'), ('EventTime', 'S8'), ('DeviceID', 'S20'),('TempValue', 'S20')], delimiter="|")
+        FormattedEventDate = str(tmpMsg['EventDate'], 'utf-8')
+        FormattedEventTime = str(tmpMsg['EventTime'], 'utf-8')
+        FormattedDeviceID = str(tmpMsg['DeviceID'], 'utf-8')
+        FormattedTemperature = str(tmpMsg['TempValue'], 'utf-8')
+        FormattedTemperature = FormattedTemperature[5:]
 
-    if "TEMP=" in str(msg.payload):
-        formatted_temp = str(msg.payload[5:], 'utf-8') # Capture the message after "TEMP="
-        if ( 'TRUE' == config['DEFAULT']['DEBUG'] ):
-            print(config['DEFAULT']['SUBSCRIBE_CHANNEL'] + "|" + formatted_temp + "|" + date_string + "|" + time_string + "|TEMP")
-        log.info(config['DEFAULT']['SUBSCRIBE_CHANNEL'] + "|" + formatted_temp + "|" + date_string + "|" + time_string + "|TEMP")
-
-    if "HUMIDITY=" in str(msg.payload):
-        formatted_humidity = str(msg.payload[9:], 'utf-8') # Capture the message after "HUMIDITY="
-        if ( 'TRUE' == config['DEFAULT']['DEBUG'] ):
-            print(config['DEFAULT']['SUBSCRIBE_CHANNEL'] + "|" + formatted_humidity + "|" + date_string + "|" + time_string + "|HUMIDITY")
-        log.info(config['DEFAULT']['SUBSCRIBE_CHANNEL'] + "|" + formatted_humidity + "|" + date_string + "|" + time_string + "|HUMIDITY")
+        print(FormattedEventDate + "|" + FormattedEventTime + "|" + FormattedDeviceID + "|" + config['DEFAULT']['SUBSCRIBE_CHANNEL'] + "|" + FormattedTemperature)
+        log.info(FormattedEventDate + "|" + FormattedEventTime + "|" + FormattedDeviceID + "|" + config['DEFAULT']['SUBSCRIBE_CHANNEL'] + "|" + FormattedTemperature)
 
 def on_connect(mqttc, obj, flags, rc):
     if ( 'TRUE' == config['DEFAULT']['DEBUG'] ):
         print("Connection return code: " + str(rc))
     log.info("Connection return code: " + str(rc))
+
+    # Subscribe request
+    MQTTClient.subscribe("test")
 
 def on_publish(mqttc, obj, mid):
     if ( 'TRUE' == config['DEFAULT']['DEBUG'] ):
@@ -77,10 +79,7 @@ MQTT_Port = config['DEFAULT']['MQTT_PORT']
 print("MQTT_Port = " + str(MQTT_Port))
 MQTT_Timeout = config['DEFAULT']['MQTT_TIMEOUT']
 print("MQTT_Timeout = " + str(MQTT_Timeout))
-MQTTClient.connect(config['DEFAULT']['MQTT_HOST'], XXXX, 60)
-
-# Subscribe request
-MQTTClient.subscribe("test", 0)
+MQTTClient.connect(config['DEFAULT']['MQTT_HOST'], 1883, 60)
 
 # Just what it says...forever
 MQTTClient.loop_forever()
