@@ -33,8 +33,6 @@ The data capture script could monitor a channel for "TEMPERATURE" where all temp
 This means that the sensors that have multiple roles would publish to the channel for each data type (e.g. "TEMPERATURE|HUMIDITY").
 
 Example sensor message:
-DATE|TIME|DEVICEID|MQTT Queue|Sensor value
+DATE|TIME|DEVICEID|MQTT Queue|Sensor value.
 04-17-2020|23:32:31|04E9E50B4F5|test|74.30
-
-
 
