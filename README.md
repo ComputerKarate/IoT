@@ -16,8 +16,8 @@ Some of the criteria used in selecting devices and software include:
    - The message will be captured by a background process and written to the DB
    - A web dashboard will display the status of the systems
 
-Because of the power, compatibility with Arduino hardware and low cost, POC will be with teensyduino devices (https://pjrc.com). 
-The background process is currently a python script monitoring the MQTT channels used by the configured devices. 
+Because of the power, compatibility with Arduino hardware and low cost, POC will be with teensyduino devices (https://pjrc.com).  
+The background process is currently a python script monitoring the MQTT channels used by the configured devices.  
 Most buildings will have multiples of the same sensor type in fairly close proxmity so we can use machine learning to validate whether a sensor is out of spec and alert or recover.  
 
 ### Phase 1:
