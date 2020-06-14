@@ -2,35 +2,68 @@
 #include <Ethernet.h>
 #include <ezTime.h>
 #include <PubSubClient.h>
-#include <Wire.h>
-#include "Adafruit_MCP9808.h"
+#include <SparkFun_RHT03.h>
 
-// TODO: Remove references to delay()
-// Replace with elapsedmillis() or something similar
+// TODO Make the TZ offset a variable and save it to flash memory
+// RHT03 is a dual temperature / humidity device
+// https://www.sparkfun.com/products/10167
 
+//////////////////////////////////////////////////////////////////////
+// Production data capture
+//////////////////////////////////////////////////////////////////////
+// Phase 1:
+//    Capture temperature
+//    Send temperature value to MQTT server
+//    Capture humidity
+//    Send humidity value to MQTT server
+//////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////
+// Phase 2:
+//    Notify errors on MQTT channel
+//    Listen on MQTT channel for commands from HQ
+//    Retrieve config values from network source
+//    Save config values to local flash memory
+//////////////////////////////////////////////////////////////////////
+
+// NOTE: ezTime requires this modification in ezTime.h to use ethernet
+//       rather than wifi:
+// Arduino Ethernet shields
+// #define EZTIME_ETHERNET
 
 /////////////////////
 // Pin Definitions //
 /////////////////////
-
+const int RHT03_DATA_PIN = 4; // RHT03 data pin
 
 ////////////////////////
 // Object Definitions //
 ////////////////////////
-// Create the MCP9808 temperature sensor object
-Adafruit_MCP9808 tempsensor = Adafruit_MCP9808();
 EthernetClient ethClient;         // Network hardware Object
 PubSubClient client(ethClient);   // MQTT Object
 Timezone timeObject;
+RHT03 rht;
+IPAddress MQTT_HOST(192, 168, 20, 18);
+////////////////////////
+
 
 //////////////////////
 // Global Variables //
 //////////////////////
-float temperature;
-char DeviceID[12];                          // Unique identifier for this device
+char DeviceID[12];      // Unique identifier for this device
+const int MQTT_PORT = 1883;
+const char MQTT_TEMPERATURE_CHANNEL[] = "TEMPERATURE";
+const char MQTT_USERNAME[] = "user1";
+const char MQTT_PASSWORD[] = "password";
+
+// Temperature sensor frequency
+const int TEMPERATURE_DELAY_PERIOD = 10000;
+unsigned long saved_millis = 0;
 
 // Substitute MAC address in case we are not running on Teensy hardware
-byte mac[] = { 0x02, 0xAA, 0xBB, 0xCC, 0xDE, 0x02 };
+byte mac[] = {  };
+//////////////////////
+
 
 /////////////////////////////////////////////////////////////////////
 // Every 32-bit teensy has a unique serial number burned into the ROM
@@ -116,43 +149,42 @@ int InitNetwork()
 
 int InitTemperatureSensor()
 {
-  // TODO: On error, scan the I2C bus for the device at a different address
-  if (!tempsensor.begin(0x18))
-  {
-    Serial.println("Couldn't find MCP9808! Check your connections and verify the address is correct.");
-  }
+  rht.begin(RHT03_DATA_PIN);
     
   return 1;
 }
 
 void GetTemperature()
 {
-  tempsensor.wake();   // wake up, ready to read!
-  temperature = tempsensor.readTempF();
-  tempsensor.shutdown_wake(1); // shutdown MSP9808 - power consumption ~0.1 mikro Ampere, stops temperature sampling
-  LogIt("Temp=" + String(temperature));
-  Serial.println("Temp=" + String(temperature));
+  // Get new humidity and temperature values from the sensor.
+  int updateRet = rht.update();
+  
+  // If successful, the update() function will return 1.
+  // If update fails, it will return a value <0
+  if (updateRet == 1)
+  {
+    float latestHumidity = rht.humidity();
+    float latestTempF = rht.tempF();
 
-  MQTTPublish(timeObject.dateTime("m-d-Y") + "|" + timeObject.dateTime("H:i:s") + "|" + String(DeviceID) + "|TEMP=" + String(temperature));
+    // Now print the values:
+    Serial.println("Humidity: " + String(latestHumidity, 1) + "%" + " Temp(F): " + String(latestTempF, 1));
+
+    MQTTPublish(timeObject.dateTime("Y-m-d") + "|" + timeObject.dateTime("H:i:s") + "|" + String(DeviceID) + "|TEMP=" + String(latestTempF, 1));
+    MQTTPublish(timeObject.dateTime("Y-m-d") + "|" + timeObject.dateTime("H:i:s") + "|" + String(DeviceID) + "|HUMIDITY=" + String(latestHumidity, 1));
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////
 // Establish an available connection for pub/sub messages
 void InitMQTTClient()
 {
-  String formattedText;
-
-  client.setServer("192.168.20.18", 1883);
-//  client.setCallback(MQTTCallback);
+  client.setServer(MQTT_HOST, MQTT_PORT);
 
   LogIt("Initializing MQTT client");
 
-  // NOTE: Since we have not introduced security to the MQTT transaction yet
-  //      these credentials can be anything
-  if (1 == client.connect("TUX_TEMP1", "user1", "football"))
+  if (1 == client.connect(DeviceID, MQTT_USERNAME, MQTT_PASSWORD))
   {
     LogIt("MQTT connection successfully made");
-    MQTTSubscribe(); // This actually subscribes to our topics
   }
   else
   {
@@ -165,64 +197,17 @@ void InitMQTTClient()
   return;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// Initial subscription to our pub/sub messages
-void MQTTSubscribe()
-{
-  bool subscribeTopicResult;
-  String subTopic = "test"; // This topic will change to something real as the
-                            // process matures
-
-  subscribeTopicResult = client.subscribe(subTopic.c_str());
-  if (subscribeTopicResult)
-  {
-    LogIt("Subscription successful");
-  }
-  else
-  {
-    LogIt("Subscription failed");
-  }
-  return;
-}
 
 //////////////////////////////////////////////////////////////////////////////
 // This routine connects to the publishing server and publishes a notification
+// TODO: Add parm for the MQTT channel
 void MQTTPublish(String msg)
 {
   // Publish message to the controller
-  // TODO The channel needs to be a variable
-  if (true != client.publish("test", msg.c_str()))
+  if (true != client.publish(MQTT_TEMPERATURE_CHANNEL, msg.c_str()))
   {
     LogIt("\nERROR: Unable to publish message to MQTT server");
   }
-//  else
-//  {
-//    LogIt("Published successfully");
-//  }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-// This function receives MQTT messages that are waiting for us
-// Not implemented yet
-void MQTTCallback(char* topic, byte* payload, unsigned int length)
-{
-  String commandText = String((char *)payload);
-  commandText[length] = '\0';
-
-//  Serial.println("Topic: [");
-//  Serial.println(topic);
-//  Serial.println("] ");
-  
-//  Serial.println("Payload length: ");
-//  Serial.println(length);
-//  Serial.println(commandText.c_str());
-
-//  if (commandText.toUpperCase() == "HOWDY")
-//  {
-//    Serial.println("\tReceived command: HOWDY");
-//  }
-
-  return;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -232,10 +217,9 @@ void MQTTReconnect()
   if (!client.connected())
   {
     LogIt("Attempting to reconnect to MQTT server");
-    if (1 == client.connect("192.168.XX.XX", "XXXX", "XXXXXXXX"))
+    if (1 == client.connect(MQTT_HOST, MQTT_USERNAME, MQTT_PASSWORD))
     {
       LogIt("\tSuccessfully reconnected to MQTT server");
-      MQTTSubscribe();
     }
     else
     {
@@ -247,12 +231,14 @@ void MQTTReconnect()
   return;
 }
 
-
+////////////////////////////////////////////////////////////////////
+// Runs one time at startup
 void setup() {
 
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
-  while (!Serial);
+//  while(!Serial);
+//  delay(500);
 
   Serial.println("\nStartup");
 
@@ -261,7 +247,7 @@ void setup() {
     Serial.println("\tNetwork online");
   }
 
-  // The next settings are time related
+  // The next settings are ezTime related
   setDebug(INFO);
   waitForSync();
   // TODO Make the TZ offset a variable and save it to flash memory
@@ -276,13 +262,15 @@ void setup() {
 }
 
 void loop() {
-  GetTemperature();
-  
-  if (!client.connected())
+
+  if (millis() - saved_millis > TEMPERATURE_DELAY_PERIOD)
   {
-    MQTTReconnect();
+    GetTemperature();
+
+    if (!client.connected())
+    {
+      MQTTReconnect();
+    }
+    saved_millis = millis();
   }
-
-  delay(10000);
-
 }
