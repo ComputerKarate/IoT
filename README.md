@@ -5,7 +5,7 @@ Embedded devices are your friend
 
 ## Overview
 Project goal is to measure, quantify, and succinctly display the resources consumed during
-a production run. 
+a production run.  
 After gathering details of resources consumed during a production cycle, we can begin comparing
 the details of many production runs looking for which conditions give us the best
 efficiencies. 
