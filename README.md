@@ -8,7 +8,7 @@ Project goal is to measure, quantify, and succinctly display the resources consu
 a production run.  
 After gathering details of resources consumed during a production cycle, we can begin comparing
 the details of many production runs looking for which conditions give us the best
-efficiencies. 
+efficiencies.  
 
 Some of the criteria used in selecting devices and software include: 
    - Framework to use IoT devices to monitor and respond to your production environment
@@ -28,13 +28,5 @@ Monitor devices:
 Data capture:
 - Devices will publish data to an MQTT server on a specific channel
 - The data captured will be saved to a DB for future analysis
-- Current MQTT server being use is Mosquitto
 
-Display data:
-- Data will be displayed in chart format
-- The user will be able to filter the data for analysis
-
-Example sensor message: 
-DATE|TIME|DEVICEID|MQTT Queue|Sensor value  
-04-17-2020|23:32:31|04E9E50B4F5|test|74.30
 
