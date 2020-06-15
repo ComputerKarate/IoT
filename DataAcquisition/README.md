@@ -16,8 +16,9 @@
 - Adafruit MCP9808 temperature only (https://www.adafruit.com/product/1782)  
 - WIZNET 850 Ethernet shield (https://www.digikey.com/product-detail/en/wiznet/WIZ850IO/1278-1043-ND/8789619)  
 - WIZ820 Adapter (https://www.pjrc.com/store/wiz820_sd_adaptor.html)  
-|Teensy LC|MCP9808|
-| -------- | ------ |
+
+| Teensy LC | MCP9808 |
+| :-- | :-- |
 |5v   |1|
 |GND  |2|
 |18   |4|
@@ -31,8 +32,9 @@ IoT/DataAcquisition/Manufacturing_MCP9808/Manufacturing_MCP9808.ino
 - Teensy 3.2 (https://www.pjrc.com/store/teensylc.html)  
 - Sparkfun RHT03 dual temperature and humidity (https://www.sparkfun.com/products/10167)  
 - WIZNET 850 Ethernet shield (https://www.digikey.com/product-detail/en/wiznet/WIZ850IO/1278-1043-ND/8789619)  
-|Teensy 3.2|RHT03|
-| -------- | ------ |
+
+| Teensy 3.2 | RHT03 |
+| :-- | :-- |
 |5v  |1|
 |GND |4|
 |4   |2|
